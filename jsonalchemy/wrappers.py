@@ -26,7 +26,7 @@
 from collections import namedtuple
 from jsonschema import SchemaError
 from six import iteritems, add_metaclass
-
+from wrapt import ObjectProxy
 from .utils import load_schema_from_url
 
 
@@ -114,8 +114,10 @@ def schema_to_type(schema):
         raise SchemaError('"{0}" is not a valid schema'.format(schema_type))
 
 
-@add_metaclass(MetaSchema)
+#@add_metaclass(MetaSchema)
 class JSONBase(object):
+
+    __schema__ = {}
 
     def __init__(self, value):
         if not (isinstance(value, self.python_class) or
@@ -124,53 +126,30 @@ class JSONBase(object):
                 value, self.python_class
             ))
 
-        object.__setattr__(self, '__storage__', value)
-
-    def __eq__(self, value):
-        return self.__storage__ == value
-
-    def __len__(self):
-        return len(self.__storage__)
-
     @classmethod
     def from_schema(cls, attrs):
         return attrs
 
 
-class Object(JSONBase):
+class Object(ObjectProxy):
 
     schema_type = 'object'
     python_class = (dict, )
 
     def __init__(self, document):
         # FIXME remove when schema is enforced
-        if getattr(self, '__schema__', {}).get('properties', None) is None:
-            return  # there is nothing for us to do without schema
+        #if getattr(self, '__schema__', {}).get('properties', None) is None:
+        #    return  # there is nothing for us to do without schema
 
+        super(Object, self).__init__(document)
         for key, value in iteritems(document):
-            field = getattr(self.__class__, key, None)
+            field = getattr(self, key, None)
 
             if not isinstance(field, Field):
                 raise RuntimeError("???")
 
             document[key] = field(value)
-            object.__setattr__(self, key, document[key])
-
-        super(Object, self).__init__(document)
-
-    def __setattr__(self, key, value):
-        field = getattr(self.__class__, key, None)
-        if field is not None:
-            self.__storage__[key] = field(value)
-        else:
-            self.__storage__[key] = value
-        object.__setattr__(self, key, self.__storage__[key])
-
-    def __getattr__(self, key):
-        try:
-            return self.__storage__[key]
-        except KeyError:
-            return super(Object, self).__getattr__(key)
+            setattr(self, key, document[key])
 
     @classmethod
     def from_schema(cls, attrs):
@@ -198,7 +177,7 @@ class Object(JSONBase):
         return attrs
 
 
-class List(JSONBase):
+class List(ObjectProxy):
 
     schema_type = 'array'
     python_class = (list, tuple)
@@ -225,7 +204,7 @@ class List(JSONBase):
         return wrapped
 
 
-class String(JSONBase):
+class String(ObjectProxy):
 
     schema_type = 'string'
     python_class = (str, unicode)
@@ -233,7 +212,7 @@ class String(JSONBase):
 # TODO implement Datetime
 
 
-class Integer(JSONBase):
+class Integer(ObjectProxy):
 
     schema_type = 'integer'
     python_class = (int, long)
@@ -241,7 +220,7 @@ class Integer(JSONBase):
 # TODO implement Number
 
 
-class Boolean(JSONBase):
+class Boolean(ObjectProxy):
 
     schema_type = 'boolean'
     python_class = (bool, )

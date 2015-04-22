@@ -188,6 +188,32 @@ def test_wrapper_recursive_composability():
         })
 
 
+def test_wrapper_composability_new():
+
+    class Record(Object):
+        identifier = Field(Integer)
+        title = Field(String)
+        keywords = Field(List)
+
+    record = Record({
+        'identifier': 1,
+        'title': 'Test',
+        'keywords': ['foo', 'bar'],
+    })
+
+    assert record.identifier == 1
+    assert record.title == 'Test'
+    assert record.keywords == ['foo', 'bar']
+
+    with pytest.raises(AttributeError) as excinfo:
+        getattr(record, 'not_existent_attribute')
+
+    with pytest.raises(Exception) as excinfo:
+        record = Record({
+            'not_in_schema': 'Any Value',
+        })
+
+
 def test_wrapper_composability():
 
     class Record(Object):
@@ -204,7 +230,6 @@ def test_wrapper_composability():
     record = Record({})
     record.identifier = 2
     assert record.identifier == 2
-    assert record.__storage__['identifier'] == 2
 
     record = Record({
         'identifier': 1,
